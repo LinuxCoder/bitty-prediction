@@ -11,45 +11,25 @@ import re
 from datetime import date
 from datetime import datetime
 
-def split_full_path(full_path):
-	m = re.search('^(.+[\/]+)(.+)', full_path)
-	path, filename = None, None
-	if (m):
-		path = m.group(1)
-		filename = m.group(2)
 
-	return path, filename
-
-
-def find_model(path, filename):
+def find_model(fullpath):
 	print("Searching for pretrained model...")
-	if (path is not None) and (filename is not None):
-		files = []
-		for root, dirs, files_ in os.walk(path):
-			if filename in files_:
-				files.append(os.path.join(root, filename))
+	model = None
+	filename = None
+	if (fullpath is not None) and os.path.isfile(fullpath):
+		filename = fullpath
+	elif(os.path.isdir('./models')):
+		current_dir = './'
+		onlyfiles = [f for f in os.listdir(current_dir) if os.path.isfile(os.path.join(current_dir, f))]
+		onlyfiles.sort()
+		if (len(onlyfiles) > 0):
+			filename = onlyfiles[len(onlyfiles) - 1]
+	
+	if (filename is not None):
+		print("Model found: " + filename)
+		return joblib.load(filename)
 
-		query = "(.*)([0-9]{2}-[0-9]{2}-[0-9]{4})"
-		dates = {}
-		for f in files:
-			match = re.search(query, f)
-			if match:
-				name = match.group(1)
-				date = match.group(2)
-				dates[datetime.strptime(date, "%d-%m-%Y")] = name+date
-		model = None
-
-		if (len(dates) > 0):
-			latest_date = max(list(dates.keys()))
-			model_filename = dates[latest_date]
-			model = joblib.load(model_filename)
-			print("Model found: " + model_filename)
-
-		else:
-			print("Model not found!")
-		return model
-
-	print("Model not found!")
+	print("Can't find model!")
 	return None
 
 
@@ -148,16 +128,14 @@ def set_interval(func, sec):
     return t
 
 
-model_path, model_filename = None, None
+fullpath = None
+model = None
 if (len(sys.argv) > 1):
-	full_path = sys.argv[1]
-	if ('/' not in full_path):
-		full_path = './' + full_path
-	model_path, model_filename = split_full_path(sys.argv[1])
-else:
-	model_path, model_filename = '.', 'model_*'
+	fullpath = sys.argv[1]
+	
+if ('--no-model' not in sys.argv):
+	model = find_model(fullpath)
 
-model = find_model(model_path, model_filename)
 if model is None:
 	model = RandomForestRegressor()
 
